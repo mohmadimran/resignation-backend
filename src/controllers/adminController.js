@@ -1,16 +1,29 @@
 const Resignation = require('../models/Resignation.js');
 const ExitResponse = require('../models/ExitResponse.js');
-const User = require('../models/User.js');
 const { sendEmail } = require('../utils/mailer.js');
+
 
 const getAllResignations = async (req, res) => {
   try {
-    const resignations = await Resignation.find();
-    res.json({ data: resignations });
+    // Fetch all resignations and include basic user info from the User collection
+    const resignations = await Resignation.find()
+      .populate('employeeId', 'name email jobRole') 
+      .sort({ createdAt: -1 }); 
+
+    if (!resignations || resignations.length === 0) {
+      return res.status(404).json({ message: 'No resignation requests found.' });
+    }
+
+    res.status(200).json({
+      message: 'Resignation requests fetched successfully.',
+      data: resignations,
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('Error fetching resignations:', err);
+    res.status(500).json({ message: 'Failed to fetch resignation requests.' });
   }
 };
+
 
 const concludeResignation = async (req, res) => {
   const { resignationId, approved, lwd } = req.body;
@@ -23,7 +36,6 @@ const concludeResignation = async (req, res) => {
       { new: true }
     ).populate('employeeId', 'email');
 
-    // 2. If employee email missing, skip email but still return success
     if (!resignation || !resignation.employeeId || !resignation.employeeId.email) {
       console.warn("Employee email not found, skipping notification");
       return res.status(200).json({
@@ -34,13 +46,12 @@ const concludeResignation = async (req, res) => {
       });
     }
 
-    // 3. Compose and send email
     const subject = approved ? 'Resignation Approved' : 'Resignation Rejected';
     const text = approved
       ? `Your resignation has been approved. Last working day: ${lwd}`
       : 'Your resignation has been rejected.';
 
-    await sendEmail({ to: "test@example.com", subject, text }); // or use resignation.employeeId.email
+    await sendEmail({ to: "test@example.com", subject, text }); 
 
     res.json({
       success: true,
