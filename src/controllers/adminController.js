@@ -53,7 +53,7 @@ const concludeResignation = async (req, res) => {
 
     await sendEmail({ to: "test@example.com", subject, text }); 
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: `Resignation ${approved ? 'approved' : 'rejected'}`,
       data: resignation
